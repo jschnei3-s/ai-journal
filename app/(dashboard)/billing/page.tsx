@@ -1,3 +1,5 @@
+"use client";
+
 import { SubscriptionCard } from "@/components/billing/SubscriptionCard";
 import { PlanComparison } from "@/components/billing/PlanComparison";
 import { UsageMeter } from "@/components/ui/UsageMeter";

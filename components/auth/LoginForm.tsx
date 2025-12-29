@@ -11,8 +11,10 @@ export function LoginForm() {
   const handleGoogleLogin = async () => {
     try {
       setLoading(true);
-    
-
+      
+      // Log cookies before OAuth to see what's there
+      console.log("Cookies before OAuth:", document.cookie);
+      
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
@@ -23,6 +25,9 @@ export function LoginForm() {
           },
         },
       });
+      
+      // Log cookies after OAuth initiation
+      console.log("Cookies after OAuth initiation:", document.cookie);
 
       // If successful, the redirect will happen automatically
       // No need to handle the redirect manually

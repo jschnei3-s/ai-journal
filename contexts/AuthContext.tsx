@@ -74,6 +74,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .single();
 
       if (error) {
+        // If table doesn't exist, show helpful error
+        if (error.code === "PGRST205") {
+          console.error("Database schema not set up. Please run supabase-schema.sql in your Supabase SQL Editor.");
+          // Fallback: create a basic user object from auth user
+          if (user) {
+            setAppUser({
+              id: user.id,
+              email: user.email || "",
+              subscription_status: "free",
+              created_at: new Date().toISOString(),
+            });
+          }
+          return;
+        }
+        
         // If user doesn't exist in users table yet, create it
         if (error.code === "PGRST116") {
           const { data: newUser, error: insertError } = await supabase
@@ -86,7 +101,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             .select()
             .single();
 
-          if (insertError) throw insertError;
+          if (insertError) {
+            // If insert fails due to RLS, the user needs to run the fix script
+            console.error("Failed to create user profile. This might be due to RLS policies.", insertError);
+            console.error("Please run fix-user-profile.sql in your Supabase SQL Editor.");
+            // Fallback: create a basic user object from auth user
+            if (user) {
+              setAppUser({
+                id: user.id,
+                email: user.email || "",
+                subscription_status: "free",
+                created_at: new Date().toISOString(),
+              });
+            }
+            return;
+          }
           setAppUser(newUser as AppUser);
         } else {
           throw error;

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useJournalEntry, useCreateEntry, useUpdateEntry, useDeleteEntry } from "@/lib/hooks/useJournal";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/Button";
 import { Save, Trash2, ArrowLeft } from "lucide-react";
 import { AIPromptDisplay } from "./AIPromptDisplay";

@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { useSubscription } from "@/contexts/SubscriptionContext";
+import { createClient } from "@/lib/supabase/client";
 
 interface AIPrompt {
   id: string;
@@ -7,45 +8,38 @@ interface AIPrompt {
   created_at: string;
 }
 
-// Mock AI prompt generation - will be replaced with Edge Function call
-async function generateAIPrompt(content: string): Promise<AIPrompt> {
-  // Simulate API delay
-  await new Promise((resolve) => setTimeout(resolve, 1000));
+// Call Supabase Edge Function to generate AI prompt
+async function generateAIPrompt(content: string, entryId?: string): Promise<AIPrompt> {
+  const supabase = createClient();
+  
+  // Get the current session to pass auth token
+  const { data: { session } } = await supabase.auth.getSession();
+  
+  if (!session) {
+    throw new Error("Not authenticated");
+  }
 
-  // Mock prompt generation based on content
-  // In production, this will call a Supabase Edge Function
-  const prompts = [
-    "What emotions are you experiencing as you write this?",
-    "Can you explore this thought from a different perspective?",
-    "What would you tell a friend who was going through this?",
-    "What patterns do you notice in your thinking?",
-    "How does this situation relate to your values?",
-    "What would you like to understand better about this?",
-    "What feels most important about what you've written?",
-    "How might you approach this differently?",
-  ];
+  // Call the Edge Function
+  const { data, error } = await supabase.functions.invoke('generate-prompts', {
+    body: {
+      content: content,
+      entry_id: entryId, // Optional: only if entry is saved
+    },
+  });
 
-  // Simple content analysis to pick relevant prompt
-  const contentLower = content.toLowerCase();
-  let selectedPrompt = prompts[Math.floor(Math.random() * prompts.length)];
+  if (error) {
+    console.error("Edge Function error:", error);
+    throw new Error(error.message || "Failed to generate prompt");
+  }
 
-  // Context-aware prompt selection (basic)
-  if (contentLower.includes("stress") || contentLower.includes("anxious")) {
-    selectedPrompt = "What specific aspects of this situation are causing you stress?";
-  } else if (contentLower.includes("happy") || contentLower.includes("excited")) {
-    selectedPrompt = "What made this moment special? How can you create more of these moments?";
-  } else if (contentLower.includes("sad") || contentLower.includes("disappointed")) {
-    selectedPrompt = "What support do you need right now? How can you be kind to yourself?";
-  } else if (contentLower.includes("work") || contentLower.includes("job")) {
-    selectedPrompt = "How does this work situation align with your personal goals?";
-  } else if (contentLower.includes("relationship") || contentLower.includes("friend")) {
-    selectedPrompt = "What does this relationship mean to you? What do you value about it?";
+  if (!data || !data.prompt_text) {
+    throw new Error("No prompt returned from API");
   }
 
   return {
-    id: crypto.randomUUID(),
-    prompt_text: selectedPrompt,
-    created_at: new Date().toISOString(),
+    id: data.id || crypto.randomUUID(),
+    prompt_text: data.prompt_text,
+    created_at: data.created_at || new Date().toISOString(),
   };
 }
 
@@ -55,7 +49,7 @@ export function useAIPrompt() {
   const [error, setError] = useState<string | null>(null);
   const [lastGenerated, setLastGenerated] = useState<Date | null>(null);
 
-  const generatePrompt = useCallback(async (content: string): Promise<AIPrompt | null> => {
+  const generatePrompt = useCallback(async (content: string, entryId?: string): Promise<AIPrompt | null> => {
     // Minimum content length to generate prompt
     if (content.trim().length < 50) {
       return null;
@@ -76,7 +70,7 @@ export function useAIPrompt() {
     setError(null);
 
     try {
-      const prompt = await generateAIPrompt(content);
+      const prompt = await generateAIPrompt(content, entryId);
       setLastGenerated(new Date());
       
       // Track usage (only for free tier)
@@ -101,11 +95,12 @@ export function useAIPrompt() {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to generate prompt";
       setError(errorMessage);
+      console.error("Error generating AI prompt:", err);
       return null;
     } finally {
       setIsGenerating(false);
     }
-  }, [lastGenerated]);
+  }, [subscriptionStatus, usage, lastGenerated]);
 
   return {
     generatePrompt,

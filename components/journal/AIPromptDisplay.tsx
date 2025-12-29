@@ -28,7 +28,7 @@ export function AIPromptDisplay({
     }
 
     const timeoutId = setTimeout(async () => {
-      const prompt = await generatePrompt(content);
+      const prompt = await generatePrompt(content, entryId);
       if (prompt) {
         setCurrentPrompt(prompt.prompt_text);
         setIsVisible(true);
@@ -37,7 +37,7 @@ export function AIPromptDisplay({
     }, 2000); // Wait 2 seconds after typing stops
 
     return () => clearTimeout(timeoutId);
-  }, [content, generatePrompt, dismissed]);
+  }, [content, entryId, generatePrompt, dismissed]);
 
   const handleAccept = () => {
     if (currentPrompt && onPromptAccepted) {

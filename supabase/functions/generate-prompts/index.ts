@@ -15,7 +15,8 @@ if (!OPENAI_API_KEY || !SUPABASE_URL || !SERVICE_ROLE_KEY) {
 }
 
 type GeneratePromptsRequest = {
-  entry_id: string
+  content?: string  // Accept content directly (for real-time prompts)
+  entry_id?: string  // Optional: if provided, will fetch from DB and save prompts
 }
 
 serve(async (req: Request) => {
@@ -39,17 +40,7 @@ serve(async (req: Request) => {
       global: { headers: { Authorization: authHeader } },
     })
 
-    const body = (await req.json()) as Partial<GeneratePromptsRequest>
-    const entryId = body.entry_id
-
-    if (!entryId) {
-      return new Response(
-        JSON.stringify({ error: "entry_id is required" }),
-        { status: 400, headers: { "Content-Type": "application/json" } },
-      )
-    }
-
-    // Get user
+    // Get user first (required for both paths)
     const {
       data: { user },
       error: userError,
@@ -62,22 +53,44 @@ serve(async (req: Request) => {
       })
     }
 
-    // Fetch journal entry
-    const { data: entry, error: entryError } = await supabase
-      .from("journal_entries")
-      .select("*")
-      .eq("id", entryId)
-      .eq("user_id", user.id)
-      .single()
+    const body = (await req.json()) as Partial<GeneratePromptsRequest>
+    const entryId = body.entry_id
+    let content: string
 
-    if (entryError || !entry) {
+    // Get content either directly or from database
+    if (body.content) {
+      // Content provided directly (for real-time prompts while typing)
+      content = body.content.trim()
+      
+      // Minimum content length check
+      if (content.length < 50) {
+        return new Response(
+          JSON.stringify({ error: "Content too short. Need at least 50 characters." }),
+          { status: 400, headers: { "Content-Type": "application/json" } },
+        )
+      }
+    } else if (entryId) {
+      // Fetch journal entry from database
+      const { data: entry, error: entryError } = await supabase
+        .from("journal_entries")
+        .select("*")
+        .eq("id", entryId)
+        .eq("user_id", user.id)
+        .single()
+
+      if (entryError || !entry) {
+        return new Response(
+          JSON.stringify({ error: "Entry not found or not owned by user" }),
+          { status: 404, headers: { "Content-Type": "application/json" } },
+        )
+      }
+      content = entry.content
+    } else {
       return new Response(
-        JSON.stringify({ error: "Entry not found or not owned by user" }),
-        { status: 404, headers: { "Content-Type": "application/json" } },
+        JSON.stringify({ error: "Either 'content' or 'entry_id' is required" }),
+        { status: 400, headers: { "Content-Type": "application/json" } },
       )
     }
-
-    const content: string = entry.content
 
     // Call OpenAI
     const openaiRes = await fetch(
@@ -89,19 +102,20 @@ serve(async (req: Request) => {
           Authorization: `Bearer ${OPENAI_API_KEY}`,
         },
         body: JSON.stringify({
-          model: "gpt-4.1-mini",
+          model: "gpt-4o-mini",
           messages: [
             {
               role: "system",
               content:
-                "You are a supportive journaling companion. Ask thoughtful, open-ended follow-up questions that help the user reflect more deeply on what they wrote. Do not give advice, diagnoses, or instructions. Respond ONLY with a numbered list of 3 to 5 short questions.",
+                "You are a supportive journaling companion. Generate a single thoughtful, open-ended follow-up question that helps the user reflect more deeply on what they wrote. Do not give advice, diagnoses, or instructions. Respond with ONLY the question, nothing else. No numbering, no list, just the question.",
             },
             {
               role: "user",
-              content: `Here is the user's journal entry:\n\n${content}\n\nGenerate 3–5 follow-up questions.`,
+              content: `Here is the user's journal entry:\n\n${content}\n\nGenerate one thoughtful follow-up question.`,
             },
           ],
           temperature: 0.7,
+          max_tokens: 150,
         }),
       },
     )
@@ -116,39 +130,44 @@ serve(async (req: Request) => {
     }
 
     const openaiJson = await openaiRes.json()
-    const rawText: string =
-      openaiJson.choices?.[0]?.message?.content ?? ""
+    const promptText: string =
+      openaiJson.choices?.[0]?.message?.content?.trim() ?? ""
 
-    const prompts = rawText
-      .split("\n")
-      .map((line: string) => line.replace(/^\d+[\).\s]*/, "").trim())
-      .filter((line: string) => line.length > 0)
+    // Clean up the prompt (remove numbering, extra whitespace, etc.)
+    const cleanPrompt = promptText
+      .replace(/^\d+[\).\s]*/, "") // Remove leading numbers
+      .replace(/^[-\*]\s*/, "") // Remove bullet points
+      .trim()
 
-    if (prompts.length === 0) {
+    if (!cleanPrompt) {
       return new Response(
-        JSON.stringify({ error: "No prompts generated" }),
+        JSON.stringify({ error: "No prompt generated" }),
         { status: 500, headers: { "Content-Type": "application/json" } },
       )
     }
 
-    const rows = prompts.map((p: string) => ({
-      entry_id: entryId,
-      prompt_text: p,
-    }))
+    // Only save to database if entry_id is provided
+    if (entryId) {
+      const { error: insertError } = await supabase
+        .from("ai_prompts")
+        .insert({
+          entry_id: entryId,
+          prompt_text: cleanPrompt,
+        })
 
-    const { error: insertError } = await supabase
-      .from("ai_prompts")
-      .insert(rows)
-
-    if (insertError) {
-      console.error("DB insert error:", insertError)
-      return new Response(
-        JSON.stringify({ error: "Failed to save prompts" }),
-        { status: 500, headers: { "Content-Type": "application/json" } },
-      )
+      if (insertError) {
+        console.error("DB insert error:", insertError)
+        // Don't fail the request if DB insert fails, just log it
+        // The prompt was still generated successfully
+      }
     }
 
-    return new Response(JSON.stringify({ prompts }), {
+    // Return single prompt (matching what the UI expects)
+    return new Response(JSON.stringify({ 
+      prompt_text: cleanPrompt,
+      id: crypto.randomUUID(),
+      created_at: new Date().toISOString(),
+    }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     })

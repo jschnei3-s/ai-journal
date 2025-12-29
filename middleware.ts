@@ -44,8 +44,8 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Don't block the callback route - it needs to process the OAuth response
-  if (request.nextUrl.pathname === "/callback") {
+  // Don't block the callback routes - they need to process the OAuth response
+  if (request.nextUrl.pathname === "/callback" || request.nextUrl.pathname === "/auth/callback") {
     return supabaseResponse;
   }
 
