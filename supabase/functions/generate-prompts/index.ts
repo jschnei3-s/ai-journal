@@ -3,71 +3,106 @@
 // This enables autocomplete, go to definition, etc.
 
 // Setup type definitions for built-in Supabase Runtime APIs
-import { serve } from "https://deno.land/std@0.224.0/http/server.ts"
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
+import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY")!
-const SUPABASE_URL = Deno.env.get("PROJECT_URL")!
-const SERVICE_ROLE_KEY = Deno.env.get("SERVICE_ROLE_KEY")!
+const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY")!;
+const SUPABASE_URL = Deno.env.get("PROJECT_URL")!;
+const SERVICE_ROLE_KEY = Deno.env.get("SERVICE_ROLE_KEY")!;
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+};
 
 if (!OPENAI_API_KEY || !SUPABASE_URL || !SERVICE_ROLE_KEY) {
-  console.error("Missing required environment variables")
+  console.error("Missing required environment variables");
 }
 
 type GeneratePromptsRequest = {
-  content?: string  // Accept content directly (for real-time prompts)
-  entry_id?: string  // Optional: if provided, will fetch from DB and save prompts
-}
+  content?: string;  // Accept content directly (for real-time prompts)
+  entry_id?: string; // Optional: if provided, will fetch from DB and save prompts
+};
 
 serve(async (req: Request) => {
   try {
-    if (req.method !== "POST") {
-      return new Response(JSON.stringify({ error: "Only POST allowed" }), {
-        status: 405,
-        headers: { "Content-Type": "application/json" },
-      })
+    // 1) Handle CORS preflight FIRST
+    if (req.method === "OPTIONS") {
+      return new Response("ok", {
+        status: 200,
+        headers: {
+          ...corsHeaders,
+        },
+      });
     }
 
-    const authHeader = req.headers.get("Authorization")
+    // 2) Only allow POST for real work (no 405 for OPTIONS)
+    if (req.method !== "POST") {
+      return new Response(
+        JSON.stringify({ error: "Only POST allowed" }),
+        {
+          status: 405,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+          },
+        },
+      );
+    }
+
+    const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(
         JSON.stringify({ error: "Missing Authorization header" }),
-        { status: 401, headers: { "Content-Type": "application/json" } },
-      )
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
     }
 
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
       global: { headers: { Authorization: authHeader } },
-    })
+    });
 
     // Get user first (required for both paths)
     const {
       data: { user },
       error: userError,
-    } = await supabase.auth.getUser()
+    } = await supabase.auth.getUser();
 
     if (userError || !user) {
-      return new Response(JSON.stringify({ error: "Not authenticated" }), {
-        status: 401,
-        headers: { "Content-Type": "application/json" },
-      })
+      return new Response(
+        JSON.stringify({ error: "Not authenticated" }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
     }
 
-    const body = (await req.json()) as Partial<GeneratePromptsRequest>
-    const entryId = body.entry_id
-    let content: string
+    const body = (await req.json()) as Partial<GeneratePromptsRequest>;
+    const entryId = body.entry_id;
+    let content: string;
 
     // Get content either directly or from database
     if (body.content) {
       // Content provided directly (for real-time prompts while typing)
-      content = body.content.trim()
-      
+      content = body.content.trim();
+
       // Minimum content length check
       if (content.length < 50) {
         return new Response(
-          JSON.stringify({ error: "Content too short. Need at least 50 characters." }),
-          { status: 400, headers: { "Content-Type": "application/json" } },
-        )
+          JSON.stringify({
+            error: "Content too short. Need at least 50 characters.",
+          }),
+          {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
       }
     } else if (entryId) {
       // Fetch journal entry from database
@@ -76,20 +111,30 @@ serve(async (req: Request) => {
         .select("*")
         .eq("id", entryId)
         .eq("user_id", user.id)
-        .single()
+        .single();
 
       if (entryError || !entry) {
         return new Response(
-          JSON.stringify({ error: "Entry not found or not owned by user" }),
-          { status: 404, headers: { "Content-Type": "application/json" } },
-        )
+          JSON.stringify({
+            error: "Entry not found or not owned by user",
+          }),
+          {
+            status: 404,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
       }
-      content = entry.content
+      content = entry.content;
     } else {
       return new Response(
-        JSON.stringify({ error: "Either 'content' or 'entry_id' is required" }),
-        { status: 400, headers: { "Content-Type": "application/json" } },
-      )
+        JSON.stringify({
+          error: "Either 'content' or 'entry_id' is required",
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
     }
 
     // Call OpenAI
@@ -118,32 +163,38 @@ serve(async (req: Request) => {
           max_tokens: 150,
         }),
       },
-    )
+    );
 
     if (!openaiRes.ok) {
-      const text = await openaiRes.text()
-      console.error("OpenAI error:", text)
+      const text = await openaiRes.text();
+      console.error("OpenAI error:", text);
       return new Response(
         JSON.stringify({ error: "Failed to generate prompts" }),
-        { status: 500, headers: { "Content-Type": "application/json" } },
-      )
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
     }
 
-    const openaiJson = await openaiRes.json()
+    const openaiJson = await openaiRes.json();
     const promptText: string =
-      openaiJson.choices?.[0]?.message?.content?.trim() ?? ""
+      openaiJson.choices?.[0]?.message?.content?.trim() ?? "";
 
     // Clean up the prompt (remove numbering, extra whitespace, etc.)
     const cleanPrompt = promptText
       .replace(/^\d+[\).\s]*/, "") // Remove leading numbers
       .replace(/^[-\*]\s*/, "") // Remove bullet points
-      .trim()
+      .trim();
 
     if (!cleanPrompt) {
       return new Response(
         JSON.stringify({ error: "No prompt generated" }),
-        { status: 500, headers: { "Content-Type": "application/json" } },
-      )
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
     }
 
     // Only save to database if entry_id is provided
@@ -153,32 +204,37 @@ serve(async (req: Request) => {
         .insert({
           entry_id: entryId,
           prompt_text: cleanPrompt,
-        })
+        });
 
       if (insertError) {
-        console.error("DB insert error:", insertError)
+        console.error("DB insert error:", insertError);
         // Don't fail the request if DB insert fails, just log it
-        // The prompt was still generated successfully
       }
     }
 
     // Return single prompt (matching what the UI expects)
-    return new Response(JSON.stringify({ 
-      prompt_text: cleanPrompt,
-      id: crypto.randomUUID(),
-      created_at: new Date().toISOString(),
-    }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    })
+    return new Response(
+      JSON.stringify({
+        prompt_text: cleanPrompt,
+        id: crypto.randomUUID(),
+        created_at: new Date().toISOString(),
+      }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
   } catch (e) {
-    console.error(e)
+    console.error(e);
     return new Response(
       JSON.stringify({ error: "Unexpected error" }),
-      { status: 500, headers: { "Content-Type": "application/json" } },
-    )
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
   }
-})
+});
 
 
 /* To invoke locally:
