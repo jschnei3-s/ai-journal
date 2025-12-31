@@ -12,27 +12,79 @@ interface AIPrompt {
 async function generateAIPrompt(content: string, entryId?: string): Promise<AIPrompt> {
   const supabase = createClient();
   
-  // Get the current session to pass auth token
-  const { data: { session } } = await supabase.auth.getSession();
+  // Get the current session
+  let { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
   
-  if (!session) {
-    throw new Error("Not authenticated");
+  // If no session or token is missing, try to refresh
+  if (sessionError || !currentSession?.access_token) {
+    console.log("Session invalid, attempting refresh...");
+    const refreshResult = await supabase.auth.refreshSession();
+    if (refreshResult.data?.session?.access_token) {
+      currentSession = refreshResult.data.session;
+    } else {
+      console.error("Session error:", sessionError || refreshResult.error);
+      throw new Error("No valid session. Please sign out and sign back in.");
+    }
+  }
+  
+  // Verify token is not expired
+  if (currentSession.expires_at && currentSession.expires_at * 1000 < Date.now()) {
+    console.log("Token expired, refreshing...");
+    const refreshResult = await supabase.auth.refreshSession();
+    if (refreshResult.data?.session?.access_token) {
+      currentSession = refreshResult.data.session;
+    } else {
+      throw new Error("Session expired. Please sign out and sign back in.");
+    }
+  }
+  
+  if (!currentSession?.access_token) {
+    throw new Error("No valid session. Please sign out and sign back in.");
+  }
+  
+  console.log("Using token, expires at:", currentSession.expires_at ? new Date(currentSession.expires_at * 1000).toISOString() : "unknown");
+
+  // Call the Edge Function directly using fetch with explicit auth headers
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!supabaseUrl || supabaseUrl.includes('placeholder')) {
+    throw new Error("Supabase URL not configured");
   }
 
-  // Call the Edge Function
-  const { data, error } = await supabase.functions.invoke('generate-prompts', {
-    body: {
-      content: content,
-      entry_id: entryId, // Optional: only if entry is saved
+  console.log("Calling Edge Function with token:", currentSession.access_token.substring(0, 20) + "...");
+
+  const response = await fetch(`${supabaseUrl}/functions/v1/generate-prompts`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${currentSession.access_token}`,
+      'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
     },
+    body: JSON.stringify({
+      content: content,
+      entry_id: entryId,
+    }),
   });
 
-  if (error) {
-    console.error("Edge Function error:", error);
-    throw new Error(error.message || "Failed to generate prompt");
+  if (!response.ok) {
+    const errorText = await response.text();
+    let errorData;
+    try {
+      errorData = JSON.parse(errorText);
+    } catch {
+      errorData = { error: `Status ${response.status}: ${errorText}` };
+    }
+    
+    console.error("Edge Function error response:", errorData);
+    throw new Error(errorData.error || errorData.details || errorData.message || `Edge Function error: ${response.status}`);
   }
 
-  if (!data || !data.prompt_text) {
+  const data = await response.json();
+  
+  if (data.error) {
+    throw new Error(data.error);
+  }
+
+  if (!data.prompt_text) {
     throw new Error("No prompt returned from API");
   }
 
@@ -93,7 +145,23 @@ export function useAIPrompt() {
       
       return prompt;
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Failed to generate prompt";
+      let errorMessage = "Failed to generate prompt";
+      
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      } else if (err && typeof err === 'object') {
+        // Try to extract message from error object
+        if ('message' in err) {
+          errorMessage = String(err.message);
+        } else if ('error' in err) {
+          errorMessage = String(err.error);
+        } else {
+          errorMessage = JSON.stringify(err);
+        }
+      } else {
+        errorMessage = String(err);
+      }
+      
       setError(errorMessage);
       console.error("Error generating AI prompt:", err);
       return null;
@@ -108,4 +176,3 @@ export function useAIPrompt() {
     error,
   };
 }
-

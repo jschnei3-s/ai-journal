@@ -9,6 +9,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY")!;
 const SUPABASE_URL = Deno.env.get("PROJECT_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SERVICE_ROLE_KEY")!;
+// Get anon key from environment or extract from request
+// The anon key is needed to validate user JWTs properly
+const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("ANON_KEY") || "";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -17,8 +20,14 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
 };
 
+// Validate environment variables at startup
 if (!OPENAI_API_KEY || !SUPABASE_URL || !SERVICE_ROLE_KEY) {
-  console.error("Missing required environment variables");
+  console.error("Missing required environment variables:", {
+    hasOpenAIKey: !!OPENAI_API_KEY,
+    hasSupabaseUrl: !!SUPABASE_URL,
+    hasServiceRoleKey: !!SERVICE_ROLE_KEY,
+    hasAnonKey: !!ANON_KEY,
+  });
 }
 
 type GeneratePromptsRequest = {
@@ -27,9 +36,16 @@ type GeneratePromptsRequest = {
 };
 
 serve(async (req: Request) => {
+  // Log every request for debugging
+  console.log("=== Edge Function Called ===");
+  console.log("Method:", req.method);
+  console.log("URL:", req.url);
+  console.log("Timestamp:", new Date().toISOString());
+  
   try {
     // 1) Handle CORS preflight FIRST
     if (req.method === "OPTIONS") {
+      console.log("Handling OPTIONS preflight");
       return new Response("ok", {
         status: 200,
         headers: {
@@ -52,38 +68,94 @@ serve(async (req: Request) => {
       );
     }
 
+    // Get authorization header - Supabase client sends it as "Authorization: Bearer <token>"
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
+    const apikeyHeader = req.headers.get("apikey") || req.headers.get("x-api-key");
+    
+    // Log headers for debugging
+    const allHeaders = Object.fromEntries(req.headers.entries());
+    console.log("Received headers:", Object.keys(allHeaders));
+    console.log("Has Authorization header:", !!authHeader);
+    console.log("Has apikey header:", !!apikeyHeader);
+    
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      console.error("❌ Missing or invalid Authorization header!");
+      console.error("Available headers:", Object.keys(allHeaders));
       return new Response(
-        JSON.stringify({ error: "Missing Authorization header" }),
+        JSON.stringify({ 
+          error: "Missing Authorization header",
+          details: "Please sign in to use this feature"
+        }),
         {
           status: 401,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         },
       );
     }
+    
+    // Extract the token from "Bearer <token>"
+    const token = authHeader.replace("Bearer ", "").trim();
+    console.log("✅ Token extracted, length:", token.length);
 
-    const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
-      global: { headers: { Authorization: authHeader } },
-    });
+    // Use the anon key from the request header if available, otherwise from env, fallback to service role
+    // The anon key is REQUIRED to validate user JWTs properly
+    const anonKey = apikeyHeader || ANON_KEY;
+    
+    if (!anonKey) {
+      console.error("❌ No anon key available!");
+      return new Response(
+        JSON.stringify({ 
+          error: "Server configuration error",
+          details: "Missing anon key for JWT validation"
+        }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+    
+    console.log("Using anon key for JWT validation");
 
-    // Get user first (required for both paths)
+    // Create Supabase client with anon key to validate user JWT
+    // IMPORTANT: Use anon key, not service role key, for user JWT validation
+    const supabaseAuth = createClient(SUPABASE_URL, anonKey);
+
+    // Validate the JWT token by passing it directly to getUser()
+    // This is the correct way to validate user tokens
     const {
       data: { user },
       error: userError,
-    } = await supabase.auth.getUser();
+    } = await supabaseAuth.auth.getUser(token);
+    
+    // Create a separate client with service role key for database operations
+    const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
     if (userError || !user) {
+      console.error("❌ Auth error!");
+      console.error("UserError:", userError);
+      console.error("User:", user);
       return new Response(
-        JSON.stringify({ error: "Not authenticated" }),
+        JSON.stringify({ 
+          error: "Not authenticated",
+          details: userError?.message || "User not found"
+        }),
         {
           status: 401,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         },
       );
     }
+    
+    console.log("✅ User authenticated:", user.id);
 
     const body = (await req.json()) as Partial<GeneratePromptsRequest>;
+    console.log("Request body received:", { 
+      hasContent: !!body.content, 
+      contentLength: body.content?.length || 0,
+      hasEntryId: !!body.entry_id 
+    });
+    
     const entryId = body.entry_id;
     let content: string;
 
