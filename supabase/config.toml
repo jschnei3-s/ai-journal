@@ -23,7 +23,6 @@ enabled = false
 # Paths to self-signed certificate pair.
 # cert_path = "../certs/my-cert.pem"
 # key_path = "../certs/my-key.pem"
-verify_jwt = false
 
 [db]
 # Port to use for the local database URL.
