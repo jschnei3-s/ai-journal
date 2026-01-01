@@ -24,16 +24,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Listen for prompt usage events to update UI
-  useEffect(() => {
-    const handlePromptUsed = () => {
-      // Force a re-render by updating a state or triggering a context update
-      // In production, this would be handled by the subscription context
-      window.location.reload(); // Simple approach for now
-    };
-    window.addEventListener("prompt-used", handlePromptUsed);
-    return () => window.removeEventListener("prompt-used", handlePromptUsed);
-  }, []);
+  // Note: Prompt usage is tracked via localStorage in useAIPrompt hook
+  // The SubscriptionContext will update on next page navigation or refresh
+  // No need to reload the page - that was causing crashes
 
   const handleSignOut = async () => {
     await signOut();

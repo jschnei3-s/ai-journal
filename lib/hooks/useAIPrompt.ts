@@ -52,18 +52,84 @@ async function generateAIPrompt(content: string, entryId?: string): Promise<AIPr
 
   console.log("Calling Edge Function with token:", currentSession.access_token.substring(0, 20) + "...");
 
-  const response = await fetch(`${supabaseUrl}/functions/v1/generate-prompts`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${currentSession.access_token}`,
-      'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
-    },
-    body: JSON.stringify({
+  // Use Supabase's built-in function invocation which handles auth automatically
+  const { data, error: invokeError } = await supabase.functions.invoke('generate-prompts', {
+    body: {
       content: content,
       entry_id: entryId,
-    }),
+    },
   });
+
+  // If invoke worked, return the data directly
+  if (data && !invokeError) {
+    console.log("✅ Supabase invoke succeeded, data:", {
+      hasError: !!data.error,
+      hasPromptText: !!data.prompt_text,
+      promptTextLength: data.prompt_text?.length || 0,
+      dataKeys: Object.keys(data),
+    });
+    
+    if (data.error) {
+      console.error("Data contains error:", data.error);
+      throw new Error(data.error);
+    }
+
+    if (!data.prompt_text) {
+      console.error("Data missing prompt_text:", data);
+      throw new Error("No prompt returned from API");
+    }
+
+    console.log("✅ Successfully parsed prompt from invoke, returning to component");
+    return {
+      id: data.id || crypto.randomUUID(),
+      prompt_text: data.prompt_text,
+      created_at: data.created_at || new Date().toISOString(),
+    };
+  }
+
+  // If invoke failed, log the error and try direct fetch as fallback
+  if (invokeError) {
+    console.warn("Supabase invoke failed:", invokeError);
+    // Try to extract error message from the invoke error
+    if (invokeError.message) {
+      console.warn("Error message:", invokeError.message);
+    }
+    if (invokeError.context) {
+      console.warn("Error context:", invokeError.context);
+    }
+    // If it's an auth error, throw it directly instead of trying fetch
+    if (invokeError.message?.includes("401") || invokeError.message?.includes("Unauthorized") || invokeError.message?.includes("JWT")) {
+      throw new Error(invokeError.message || "Authentication failed. Please sign out and sign back in.");
+    }
+  }
+
+  // Add timeout to prevent hanging requests
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+  let response: Response;
+  try {
+    response = await fetch(`${supabaseUrl}/functions/v1/generate-prompts`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${currentSession.access_token}`,
+        'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
+      },
+      body: JSON.stringify({
+        content: content,
+        entry_id: entryId,
+      }),
+      signal: controller.signal,
+    });
+  } catch (fetchError) {
+    clearTimeout(timeoutId);
+    if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+      throw new Error("Request timed out. Please try again.");
+    }
+    throw fetchError;
+  }
+  clearTimeout(timeoutId);
 
   if (!response.ok) {
     const errorText = await response.text();
@@ -78,20 +144,29 @@ async function generateAIPrompt(content: string, entryId?: string): Promise<AIPr
     throw new Error(errorData.error || errorData.details || errorData.message || `Edge Function error: ${response.status}`);
   }
 
-  const data = await response.json();
+  const responseData = await response.json();
+  console.log("✅ Edge Function response received:", {
+    hasError: !!responseData.error,
+    hasPromptText: !!responseData.prompt_text,
+    promptTextLength: responseData.prompt_text?.length || 0,
+    responseKeys: Object.keys(responseData),
+  });
   
-  if (data.error) {
-    throw new Error(data.error);
+  if (responseData.error) {
+    console.error("Response contains error:", responseData.error);
+    throw new Error(responseData.error);
   }
 
-  if (!data.prompt_text) {
+  if (!responseData.prompt_text) {
+    console.error("Response missing prompt_text:", responseData);
     throw new Error("No prompt returned from API");
   }
 
+  console.log("✅ Successfully parsed prompt, returning to component");
   return {
-    id: data.id || crypto.randomUUID(),
-    prompt_text: data.prompt_text,
-    created_at: data.created_at || new Date().toISOString(),
+    id: responseData.id || crypto.randomUUID(),
+    prompt_text: responseData.prompt_text,
+    created_at: responseData.created_at || new Date().toISOString(),
   };
 }
 
@@ -170,9 +245,14 @@ export function useAIPrompt() {
     }
   }, [subscriptionStatus, usage, lastGenerated]);
 
+  const clearError = useCallback(() => {
+    setError(null);
+  }, []);
+
   return {
     generatePrompt,
     isGenerating,
     error,
+    clearError,
   };
 }

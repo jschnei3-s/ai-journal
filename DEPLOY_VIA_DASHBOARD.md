@@ -24,9 +24,11 @@ Yes! You can deploy the Edge Function directly from the Supabase website. Here's
 ## Step 4: Set Environment Variables (Secrets)
 
 1. In the Edge Functions page, click on **Settings** or **Secrets**
-2. Add a new secret:
+2. Add the following secrets:
    - **Name**: `OPENAI_API_KEY`
-   - **Value**: Your OpenAI API key (get it from https://platform.openai.com/api-keys)
+     - **Value**: Your OpenAI API key (get it from https://platform.openai.com/api-keys)
+   - **Name**: `SUPABASE_ANON_KEY` (Important!)
+     - **Value**: Your Supabase anon key (found in Dashboard → Settings → API → anon public key)
 3. Click **Save**
 
 **Note**: The Edge Function also needs these environment variables (they're usually auto-set):
@@ -36,6 +38,8 @@ Yes! You can deploy the Edge Function directly from the Supabase website. Here's
 These should already be available, but if you get errors, you can find them in:
 - Dashboard → Settings → API → Project URL
 - Dashboard → Settings → API → service_role key (keep this secret!)
+
+**Important**: The `SUPABASE_ANON_KEY` is required for JWT validation when using `supabase.functions.invoke()`. Make sure it's set!
 
 ## Step 5: Test It
 

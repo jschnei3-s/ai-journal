@@ -22,7 +22,8 @@ max_rows = 1000
 enabled = false
 # Paths to self-signed certificate pair.
 # cert_path = "../certs/my-cert.pem"
-# key_path = "../certs/my-key.pem"
+# key_path = "../certs/my-key.pem"supabase functions deploy generate-prompts
+
 
 [db]
 # Port to use for the local database URL.
@@ -383,7 +384,7 @@ s3_secret_key = "env(S3_SECRET_KEY)"
 
 [functions.generate-prompts]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/generate-prompts/deno.json"
 # Uncomment to specify a custom file path to the entrypoint.
 # Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
