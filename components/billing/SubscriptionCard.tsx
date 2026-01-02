@@ -90,7 +90,7 @@ export function SubscriptionCard() {
       {isPremium && (
         <div className="bg-green-50 rounded-lg p-4 border border-green-200">
           <p className="text-sm text-green-800">
-            You're on the Premium plan. Thank you for your support!
+          You&apos;re on the Premium plan. Thank you for your support!
           </p>
         </div>
       )}

@@ -34,12 +34,12 @@ export function UsageMeter({ current, limit, label }: UsageMeterProps) {
       <Progress value={percentage} isNearLimit={isNearLimit} isAtLimit={isAtLimit} />
       {isAtLimit && (
         <p className="text-xs text-red-600">
-          You've reached your limit. Upgrade to continue using AI prompts.
+          You&apos;ve reached your limit. Upgrade to continue using AI prompts.
         </p>
       )}
       {isNearLimit && !isAtLimit && (
         <p className="text-xs text-yellow-600">
-          You're approaching your limit. Consider upgrading for unlimited prompts.
+          You&apos;re approaching your limit. Consider upgrading for unlimited prompts.
         </p>
       )}
     </div>
