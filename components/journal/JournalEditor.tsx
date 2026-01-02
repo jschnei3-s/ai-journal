@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useJournalEntry, useCreateEntry, useUpdateEntry, useDeleteEntry } from "@/lib/hooks/useJournal";
 import { useAuth } from "@/contexts/AuthContext";
@@ -38,6 +38,29 @@ export function JournalEditor({ entryId }: JournalEditorProps) {
     }
   }, [existingEntry]);
 
+  const handleAutosave = useCallback(async () => {
+    if (!content.trim()) return;
+
+    setIsSaving(true);
+    try {
+      if (entryId && existingEntry) {
+        await updateEntry.mutateAsync({ id: entryId, content });
+      } else {
+        const newEntry = await createEntry.mutateAsync(content);
+        // Redirect to edit page for the new entry
+        if (newEntry) {
+          router.replace(`/journal/${newEntry.id}`);
+        }
+      }
+      setLastSaved(new Date());
+    } catch (error) {
+      console.error("Error saving entry:", error);
+      alert("Failed to save entry. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
+  }, [content, entryId, existingEntry, updateEntry, createEntry, router]);
+
   // Autosave functionality
   useEffect(() => {
     // Don't autosave if content is empty or hasn't changed
@@ -60,30 +83,7 @@ export function JournalEditor({ entryId }: JournalEditorProps) {
         clearTimeout(autosaveTimeoutRef.current);
       }
     };
-  }, [content, existingEntry]);
-
-  const handleAutosave = async () => {
-    if (!content.trim()) return;
-
-    setIsSaving(true);
-    try {
-      if (entryId && existingEntry) {
-        await updateEntry.mutateAsync({ id: entryId, content });
-      } else {
-        const newEntry = await createEntry.mutateAsync(content);
-        // Redirect to edit page for the new entry
-        if (newEntry) {
-          router.replace(`/journal/${newEntry.id}`);
-        }
-      }
-      setLastSaved(new Date());
-    } catch (error) {
-      console.error("Error saving entry:", error);
-      alert("Failed to save entry. Please try again.");
-    } finally {
-      setIsSaving(false);
-    }
-  };
+  }, [content, existingEntry, handleAutosave]);
 
   const handleManualSave = async () => {
     await handleAutosave();
@@ -94,13 +94,13 @@ export function JournalEditor({ entryId }: JournalEditorProps) {
 
   // Auto-focus textarea on mount
   useEffect(() => {
-    if (textareaRef.current && !isLoadingEntry) {
-      textareaRef.current.focus();
-      // Move cursor to end
-      const length = textareaRef.current.value.length;
-      textareaRef.current.setSelectionRange(length, length);
-    }
-  }, [isLoadingEntry]);
+    const el = textareaRef.current;
+    if (!el || isLoadingEntry) return;
+  
+    el.focus();
+    const length = el.value.length;
+    el.setSelectionRange(length, length);
+  }, [isLoadingEntry]);  
 
   if (isLoadingEntry && entryId) {
     return (
@@ -184,11 +184,15 @@ export function JournalEditor({ entryId }: JournalEditorProps) {
             });
             // Focus back on textarea
             if (textareaRef.current) {
-              setTimeout(() => {
-                textareaRef.current?.focus();
-                const length = textareaRef.current.value.length;
-                textareaRef.current.setSelectionRange(length, length);
-              }, 100);
+                setTimeout(() => {
+                    const el = textareaRef.current;
+                    if (!el) return;
+                  
+                    el.focus();
+                    const length = el.value.length;
+                    el.setSelectionRange(length, length);
+                  }, 100);
+                  
             }
           }}
         />
