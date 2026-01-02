@@ -8,11 +8,38 @@ export function SubscriptionCard() {
   const { subscriptionStatus } = useSubscription();
   const isPremium = subscriptionStatus === "premium";
 
-  const handleUpgrade = () => {
-    // This will redirect to Stripe Checkout
-    // For now, we'll show a placeholder
-    alert("Stripe checkout will be implemented when backend is ready");
+    const handleUpgrade = async () => {
+    try {
+      const res = await fetch("/api/stripe/create-checkout-session", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        // body is optional because we use STRIPE_PRICE_ID_PREMIUM from env
+        body: JSON.stringify({}),
+      });
+
+      if (!res.ok) {
+        console.error("Failed to create checkout session", await res.text());
+        alert("Failed to start checkout. Please try again.");
+        return;
+      }
+
+      const data = await res.json();
+
+      if (!data.url) {
+        alert("Stripe did not return a checkout URL.");
+        return;
+      }
+
+      // Redirect to Stripe Checkout
+      window.location.href = data.url;
+    } catch (err) {
+      console.error("Error calling checkout endpoint:", err);
+      alert("Something went wrong starting checkout.");
+    }
   };
+
 
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-6">
