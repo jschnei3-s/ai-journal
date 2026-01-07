@@ -44,8 +44,26 @@ function getBaseUrl(req: Request): string {
   return "http://localhost:3000";
 }
 
+// Add GET handler to test if route is accessible
+export async function GET() {
+  console.log("[STRIPE] GET request received - testing route accessibility");
+  return NextResponse.json({
+    status: "Route is accessible",
+    stripeConfigured: !!stripe,
+    envVars: {
+      STRIPE_SECRET_KEY: stripeSecretKey ? "SET" : "MISSING",
+      STRIPE_PRICE_MONTHLY: stripePriceId ? "SET" : "MISSING",
+    },
+    stripeInitError: stripeInitError || null,
+  });
+}
+
 export async function POST(req: Request) {
-  // Immediately return JSON error if module initialization failed
+  // Log immediately to verify route is hit
+  console.log("\n\n[STRIPE] =========================================");
+  console.log("[STRIPE] POST request received at:", new Date().toISOString());
+  console.log("[STRIPE] =========================================\n");
+  
   try {
     console.log("[STRIPE] ==== CHECKOUT REQUEST START ====");
     console.log("[STRIPE] Request URL:", req.url);
@@ -86,10 +104,13 @@ export async function POST(req: Request) {
     const cancelUrl = `${baseUrl}/billing`;
 
     console.log("[STRIPE] Creating checkout session:");
+    console.log("  - Request host header:", req.headers.get("host"));
+    console.log("  - Request origin:", req.headers.get("origin"));
     console.log("  - Base URL:", baseUrl);
     console.log("  - Success URL:", successUrl);
     console.log("  - Cancel URL:", cancelUrl);
     console.log("  - Price ID:", stripePriceId);
+    console.log("  - NEXT_PUBLIC_SITE_URL env:", process.env.NEXT_PUBLIC_SITE_URL || "NOT SET");
 
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
