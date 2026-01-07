@@ -79,26 +79,54 @@ export async function POST(req: Request) {
     console.log("[STRIPE] Environment check:");
     console.log("  - STRIPE_SECRET_KEY exists:", !!stripeSecretKey);
     console.log("  - STRIPE_SECRET_KEY valid:", stripeSecretKey?.startsWith('sk_'));
+    console.log("  - STRIPE_SECRET_KEY length:", stripeSecretKey?.length || 0);
     console.log("  - STRIPE_PRICE_MONTHLY exists:", !!stripePriceId);
     console.log("  - STRIPE_PRICE_MONTHLY valid:", stripePriceId?.startsWith('price_'));
+    console.log("  - STRIPE_PRICE_MONTHLY value:", stripePriceId || "MISSING");
     console.log("  - NEXT_PUBLIC_SITE_URL:", process.env.NEXT_PUBLIC_SITE_URL || "NOT SET");
+    console.log("  - Stripe client initialized:", !!stripe);
+    console.log("  - Stripe init error:", stripeInitError || "none");
     
     // Validate Stripe configuration
     if (!stripe) {
-      const error = stripeInitError || "Stripe is not configured. Please check STRIPE_SECRET_KEY environment variable.";
+      let error = stripeInitError || "Stripe is not configured.";
+      
+      if (!stripeSecretKey) {
+        error = "STRIPE_SECRET_KEY environment variable is missing. Please add it in Vercel Dashboard → Settings → Environment Variables and redeploy.";
+      } else if (!stripeSecretKey.startsWith('sk_')) {
+        error = `STRIPE_SECRET_KEY format is invalid. It should start with 'sk_', but got: '${stripeSecretKey.substring(0, 10)}...'. Please check your Vercel environment variables.`;
+      } else {
+        error = `Stripe initialization failed: ${stripeInitError || "Unknown error"}. Please check your STRIPE_SECRET_KEY in Vercel.`;
+      }
+      
       console.error("[STRIPE ERROR]", error);
       console.error("[STRIPE ERROR] STRIPE_SECRET_KEY value:", stripeSecretKey ? `${stripeSecretKey.substring(0, 7)}...` : "MISSING");
       return NextResponse.json(
-        { error },
+        { 
+          error,
+          details: {
+            stripeSecretKeySet: !!stripeSecretKey,
+            stripeSecretKeyValid: stripeSecretKey?.startsWith('sk_') || false,
+            stripePriceIdSet: !!stripePriceId,
+            stripePriceIdValid: stripePriceId?.startsWith('price_') || false,
+            stripeInitError: stripeInitError || null,
+          }
+        },
         { status: 500 }
       );
     }
 
     if (!stripePriceId || !stripePriceId.startsWith('price_')) {
-      const error = `Stripe price ID is not configured. Current value: "${stripePriceId || "MISSING"}". Please check STRIPE_PRICE_MONTHLY environment variable.`;
+      const error = `STRIPE_PRICE_MONTHLY environment variable is ${stripePriceId ? `invalid (got: "${stripePriceId}")` : "missing"}. It should start with 'price_'. Please add it in Vercel Dashboard → Settings → Environment Variables and redeploy.`;
       console.error("[STRIPE ERROR]", error);
       return NextResponse.json(
-        { error },
+        { 
+          error,
+          details: {
+            stripePriceIdSet: !!stripePriceId,
+            stripePriceIdValue: stripePriceId || "MISSING",
+          }
+        },
         { status: 500 }
       );
     }

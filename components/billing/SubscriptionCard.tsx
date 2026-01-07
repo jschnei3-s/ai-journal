@@ -20,24 +20,35 @@ export function SubscriptionCard() {
       });
 
       console.log("[CHECKOUT] Response status:", res.status, res.statusText);
+      console.log("[CHECKOUT] Response ok:", res.ok);
 
       if (!res.ok) {
         const errorText = await res.text();
-        console.error("[CHECKOUT] API error response:", errorText);
+        console.error("[CHECKOUT] API error response (raw):", errorText);
+        console.error("[CHECKOUT] Response status:", res.status);
+        console.error("[CHECKOUT] Response headers:", Object.fromEntries(res.headers.entries()));
+        
         let errorData;
         try {
           errorData = JSON.parse(errorText);
-        } catch {
-          errorData = { error: errorText || "Unknown error" };
+          console.error("[CHECKOUT] Parsed JSON error:", errorData);
+        } catch (parseErr) {
+          console.error("[CHECKOUT] Failed to parse error as JSON:", parseErr);
+          errorData = { error: errorText || "Unknown error", raw: errorText };
         }
-        const errorMessage = errorData.error || `HTTP ${res.status}: ${res.statusText}`;
-        console.error("[CHECKOUT] Parsed error:", errorMessage);
-        alert(`Failed to start checkout: ${errorMessage}`);
+        const errorMessage = errorData.error || errorData.message || errorData.raw || `HTTP ${res.status}: ${res.statusText}`;
+        console.error("[CHECKOUT] Final error message:", errorMessage);
+        
+        // Show detailed error to help debug
+        const detailedError = `Error: ${errorMessage}\n\nStatus: ${res.status}\n\nPlease check:\n1. Vercel environment variables are set\n2. STRIPE_SECRET_KEY starts with 'sk_'\n3. STRIPE_PRICE_MONTHLY starts with 'price_'\n\nSee browser console for full details.`;
+        alert(detailedError);
         return;
       }
 
+      console.log("[CHECKOUT] Response is OK, parsing JSON...");
       const data = await res.json();
       console.log("[CHECKOUT] Success response:", data);
+      console.log("[CHECKOUT] Data URL exists:", !!data.url);
 
       if (!data.url) {
         console.error("[CHECKOUT] No URL in response:", data);
