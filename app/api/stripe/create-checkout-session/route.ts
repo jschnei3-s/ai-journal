@@ -45,6 +45,7 @@ function getBaseUrl(req: Request): string {
 }
 
 export async function POST(req: Request) {
+  // Immediately return JSON error if module initialization failed
   try {
     console.log("[STRIPE] ==== CHECKOUT REQUEST START ====");
     console.log("[STRIPE] Request URL:", req.url);
