@@ -48,3 +48,5 @@ Open DevTools (F12) → Console and look for:
 
 After signing back in, try the journal editor again. The AI prompts should work!
 
+
+

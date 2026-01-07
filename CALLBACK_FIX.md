@@ -38,3 +38,5 @@ Getting a 404 when trying to access `/callback` after Google OAuth.
 
 The route is correctly set up at `app/(auth)/callback/route.ts` which should be accessible at `/callback`.
 
+
+

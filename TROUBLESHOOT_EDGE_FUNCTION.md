@@ -113,3 +113,5 @@ Make sure the function code in the dashboard matches `supabase/functions/generat
      -d '{"content":"This is a test entry with enough content to generate a prompt."}'
    ```
 
+
+

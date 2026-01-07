@@ -351,3 +351,5 @@ CREATE TRIGGER update_journal_entries_updated_at
 
 Both paths will lead to a fully functional app! 🚀
 
+
+

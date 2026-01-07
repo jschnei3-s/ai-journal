@@ -100,3 +100,5 @@ curl -i --location --request POST 'http://127.0.0.1:54321/functions/v1/generate-
   --data '{"content":"This is a test journal entry with enough content to generate a prompt."}'
 ```
 
+
+

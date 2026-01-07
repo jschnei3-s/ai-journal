@@ -70,3 +70,5 @@ Replace `YOUR_USER_UUID_HERE` with your actual user UUID and `your-email@example
 ### Error: "relation does not exist"
 - **Solution**: The schema hasn't been run. Follow steps 1-2 above.
 
+
+

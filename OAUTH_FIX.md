@@ -44,3 +44,5 @@ The code has been updated to properly handle the OAuth flow. If you're still see
 3. Verify your `.env.local` has the correct Supabase URL and keys
 4. Check the browser console for any additional errors
 
+
+

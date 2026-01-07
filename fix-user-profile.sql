@@ -50,3 +50,5 @@ ORDER BY tablename, policyname;
 -- Note: This will only work if you're authenticated
 -- The RLS policy will automatically use auth.uid() from your session
 
+
+

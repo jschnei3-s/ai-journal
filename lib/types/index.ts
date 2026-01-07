@@ -20,3 +20,5 @@ export interface AIPrompt {
   created_at: string;
 }
 
+
+

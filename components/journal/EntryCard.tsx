@@ -67,3 +67,5 @@ export function EntryCard({ entry, onDelete }: EntryCardProps) {
   );
 }
 
+
+

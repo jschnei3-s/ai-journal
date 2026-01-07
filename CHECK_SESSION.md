@@ -37,3 +37,5 @@ The most important thing is to check the Edge Function logs:
 
 The logs will tell us exactly what's wrong!
 
+
+

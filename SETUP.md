@@ -177,3 +177,5 @@
 - **Database errors**: Ensure RLS policies are set up correctly
 - **Type errors**: Run `npm install` to ensure all dependencies are installed
 
+
+

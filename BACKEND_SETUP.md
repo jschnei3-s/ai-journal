@@ -45,3 +45,5 @@ The following files will be updated to use real Supabase:
 - `contexts/AuthContext.tsx` - Real user profile fetching
 - `contexts/SubscriptionContext.tsx` - Real subscription data
 
+
+

@@ -216,3 +216,5 @@ const handleUpgrade = async () => {
 
 The frontend is **100% complete** and ready for backend integration! 🎉
 
+
+

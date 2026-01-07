@@ -61,3 +61,5 @@ Run `fix-user-profile.sql` which will:
 
 The `journal_entries` table actually references `auth.users` directly (not `public.users`), so the RLS error might be a different issue. However, having your profile in `public.users` is still important for the app to work correctly.
 
+
+
