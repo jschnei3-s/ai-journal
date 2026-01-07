@@ -19,16 +19,21 @@ export function PlanComparison() {
 
       if (!res.ok) {
         const errorText = await res.text();
-        console.error("[CHECKOUT] API error response:", errorText);
+        console.error("[CHECKOUT] API error response (raw):", errorText);
+        console.error("[CHECKOUT] Response status:", res.status);
+        console.error("[CHECKOUT] Response headers:", Object.fromEntries(res.headers.entries()));
+        
         let errorData;
         try {
           errorData = JSON.parse(errorText);
-        } catch {
-          errorData = { error: errorText || "Unknown error" };
+          console.error("[CHECKOUT] Parsed JSON error:", errorData);
+        } catch (parseErr) {
+          console.error("[CHECKOUT] Failed to parse error as JSON:", parseErr);
+          errorData = { error: errorText || "Unknown error", raw: errorText };
         }
-        const errorMessage = errorData.error || `HTTP ${res.status}: ${res.statusText}`;
-        console.error("[CHECKOUT] Parsed error:", errorMessage);
-        alert(`Failed to start checkout: ${errorMessage}`);
+        const errorMessage = errorData.error || errorData.raw || `HTTP ${res.status}: ${res.statusText}`;
+        console.error("[CHECKOUT] Final error message:", errorMessage);
+        alert(`Failed to start checkout:\n\n${errorMessage}\n\n(Check console for details)`);
         return;
       }
 
