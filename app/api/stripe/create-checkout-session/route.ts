@@ -4,24 +4,31 @@ import { NextResponse } from "next/server";
 // Ensure this route runs in Node.js runtime (required for Stripe SDK)
 export const runtime = "nodejs";
 
-// Validate environment variables upfront
+// Validate environment variables upfront with safe initialization
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 const stripePriceId = process.env.STRIPE_PRICE_MONTHLY;
 
 let stripe: Stripe | null = null;
 let stripeInitError: string | null = null;
 
-if (stripeSecretKey && stripeSecretKey.startsWith('sk_')) {
-  try {
-    stripe = new Stripe(stripeSecretKey);
-    console.log("[STRIPE] Stripe initialized successfully");
-  } catch (err: any) {
-    stripeInitError = err?.message || String(err);
-    console.error("[STRIPE] Failed to initialize Stripe:", err);
+// Safe Stripe initialization - catch all errors to prevent module load failures
+try {
+  if (stripeSecretKey && stripeSecretKey.startsWith('sk_')) {
+    try {
+      stripe = new Stripe(stripeSecretKey);
+      console.log("[STRIPE] Stripe initialized successfully");
+    } catch (err: any) {
+      stripeInitError = err?.message || String(err);
+      console.error("[STRIPE] Failed to initialize Stripe:", err);
+    }
+  } else {
+    stripeInitError = stripeSecretKey ? "STRIPE_SECRET_KEY format is invalid (must start with 'sk_')" : "STRIPE_SECRET_KEY is missing";
+    console.error("[STRIPE]", stripeInitError);
   }
-} else {
-  stripeInitError = stripeSecretKey ? "STRIPE_SECRET_KEY format is invalid (must start with 'sk_')" : "STRIPE_SECRET_KEY is missing";
-  console.error("[STRIPE]", stripeInitError);
+} catch (err: any) {
+  // Catch any unexpected errors during module initialization
+  stripeInitError = `Module initialization error: ${err?.message || String(err)}`;
+  console.error("[STRIPE] Critical initialization error:", err);
 }
 
 // Helper function to get the base URL for redirects
