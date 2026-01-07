@@ -46,6 +46,9 @@ function getBaseUrl(req: Request): string {
 
 export async function POST(req: Request) {
   try {
+    console.log("[STRIPE] ==== CHECKOUT REQUEST START ====");
+    console.log("[STRIPE] Request URL:", req.url);
+    console.log("[STRIPE] Request method:", req.method);
     console.log("[STRIPE] Checkout session request received");
     console.log("[STRIPE] Environment check:");
     console.log("  - STRIPE_SECRET_KEY exists:", !!stripeSecretKey);
@@ -53,6 +56,7 @@ export async function POST(req: Request) {
     console.log("  - STRIPE_PRICE_MONTHLY exists:", !!stripePriceId);
     console.log("  - STRIPE_PRICE_MONTHLY valid:", stripePriceId?.startsWith('price_'));
     console.log("  - NEXT_PUBLIC_SITE_URL:", process.env.NEXT_PUBLIC_SITE_URL || "NOT SET");
+    
     // Validate Stripe configuration
     if (!stripe) {
       const error = stripeInitError || "Stripe is not configured. Please check STRIPE_SECRET_KEY environment variable.";
@@ -101,12 +105,13 @@ export async function POST(req: Request) {
     console.log("[STRIPE] Checkout session created successfully:", session.id);
     return NextResponse.json({ url: session.url });
   } catch (err: any) {
-    console.error("[STRIPE ERROR] Full error details:");
+    console.error("[STRIPE ERROR] ==== FULL ERROR DETAILS ====");
     console.error("  - Type:", err?.type);
     console.error("  - Code:", err?.code);
     console.error("  - Message:", err?.message);
     console.error("  - Status Code:", err?.statusCode);
     console.error("  - Stack:", err?.stack);
+    console.error("==========================================");
     
     let errorMessage = "Failed to create checkout session";
     
@@ -128,4 +133,3 @@ export async function POST(req: Request) {
     );
   }
 }
-
