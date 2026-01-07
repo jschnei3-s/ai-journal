@@ -10,33 +10,47 @@ export function SubscriptionCard() {
 
     const handleUpgrade = async () => {
     try {
+      console.log("[CHECKOUT] Starting checkout session creation...");
       const res = await fetch("/api/stripe/create-checkout-session", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        // body is optional because we use STRIPE_PRICE_ID_PREMIUM from env
         body: JSON.stringify({}),
       });
 
+      console.log("[CHECKOUT] Response status:", res.status, res.statusText);
+
       if (!res.ok) {
-        console.error("Failed to create checkout session", await res.text());
-        alert("Failed to start checkout. Please try again.");
+        const errorText = await res.text();
+        console.error("[CHECKOUT] API error response:", errorText);
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { error: errorText || "Unknown error" };
+        }
+        const errorMessage = errorData.error || `HTTP ${res.status}: ${res.statusText}`;
+        console.error("[CHECKOUT] Parsed error:", errorMessage);
+        alert(`Failed to start checkout: ${errorMessage}`);
         return;
       }
 
       const data = await res.json();
+      console.log("[CHECKOUT] Success response:", data);
 
       if (!data.url) {
+        console.error("[CHECKOUT] No URL in response:", data);
         alert("Stripe did not return a checkout URL.");
         return;
       }
 
+      console.log("[CHECKOUT] Redirecting to:", data.url);
       // Redirect to Stripe Checkout
       window.location.href = data.url;
     } catch (err) {
-      console.error("Error calling checkout endpoint:", err);
-      alert("Something went wrong starting checkout.");
+      console.error("[CHECKOUT] Network/fetch error:", err);
+      alert(`Something went wrong starting checkout: ${err instanceof Error ? err.message : "Unknown error"}`);
     }
   };
 
