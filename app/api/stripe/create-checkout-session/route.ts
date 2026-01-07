@@ -17,17 +17,10 @@ try {
     try {
       stripe = new Stripe(stripeSecretKey);
       console.log("[STRIPE] Stripe initialized successfully");
-    } catch (err) {
-      console.error("Stripe checkout error", err);
-    
-      return NextResponse.json(
-        {
-          error: err instanceof Error ? err.message : String(err),
-        },
-        { status: 500 }
-      );
+    } catch (err: any) {
+      stripeInitError = err?.message || String(err);
+      console.error("[STRIPE] Failed to initialize Stripe:", err);
     }
-    
   } else {
     stripeInitError = stripeSecretKey ? "STRIPE_SECRET_KEY format is invalid (must start with 'sk_')" : "STRIPE_SECRET_KEY is missing";
     console.error("[STRIPE]", stripeInitError);
