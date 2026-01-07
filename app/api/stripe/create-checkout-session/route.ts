@@ -9,13 +9,19 @@ const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 const stripePriceId = process.env.STRIPE_PRICE_MONTHLY;
 
 let stripe: Stripe | null = null;
+let stripeInitError: string | null = null;
 
 if (stripeSecretKey && stripeSecretKey.startsWith('sk_')) {
   try {
     stripe = new Stripe(stripeSecretKey);
-  } catch (err) {
+    console.log("[STRIPE] Stripe initialized successfully");
+  } catch (err: any) {
+    stripeInitError = err?.message || String(err);
     console.error("[STRIPE] Failed to initialize Stripe:", err);
   }
+} else {
+  stripeInitError = stripeSecretKey ? "STRIPE_SECRET_KEY format is invalid (must start with 'sk_')" : "STRIPE_SECRET_KEY is missing";
+  console.error("[STRIPE]", stripeInitError);
 }
 
 // Helper function to get the base URL for redirects
@@ -39,19 +45,19 @@ function getBaseUrl(req: Request): string {
 }
 
 export async function POST(req: Request) {
-  console.log("[STRIPE] Checkout session request received");
-  console.log("[STRIPE] Environment check:");
-  console.log("  - STRIPE_SECRET_KEY exists:", !!stripeSecretKey);
-  console.log("  - STRIPE_SECRET_KEY valid:", stripeSecretKey?.startsWith('sk_'));
-  console.log("  - STRIPE_PRICE_MONTHLY exists:", !!stripePriceId);
-  console.log("  - STRIPE_PRICE_MONTHLY valid:", stripePriceId?.startsWith('price_'));
-  console.log("  - NEXT_PUBLIC_SITE_URL:", process.env.NEXT_PUBLIC_SITE_URL || "NOT SET");
-
   try {
+    console.log("[STRIPE] Checkout session request received");
+    console.log("[STRIPE] Environment check:");
+    console.log("  - STRIPE_SECRET_KEY exists:", !!stripeSecretKey);
+    console.log("  - STRIPE_SECRET_KEY valid:", stripeSecretKey?.startsWith('sk_'));
+    console.log("  - STRIPE_PRICE_MONTHLY exists:", !!stripePriceId);
+    console.log("  - STRIPE_PRICE_MONTHLY valid:", stripePriceId?.startsWith('price_'));
+    console.log("  - NEXT_PUBLIC_SITE_URL:", process.env.NEXT_PUBLIC_SITE_URL || "NOT SET");
     // Validate Stripe configuration
     if (!stripe) {
-      const error = "Stripe is not configured. Please check STRIPE_SECRET_KEY environment variable.";
+      const error = stripeInitError || "Stripe is not configured. Please check STRIPE_SECRET_KEY environment variable.";
       console.error("[STRIPE ERROR]", error);
+      console.error("[STRIPE ERROR] STRIPE_SECRET_KEY value:", stripeSecretKey ? `${stripeSecretKey.substring(0, 7)}...` : "MISSING");
       return NextResponse.json(
         { error },
         { status: 500 }
