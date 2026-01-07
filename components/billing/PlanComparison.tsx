@@ -4,8 +4,42 @@ import { Check, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 
 export function PlanComparison() {
-  const handleUpgrade = () => {
-    alert("Stripe checkout will be implemented when backend is ready");
+  const handleUpgrade = async () => {
+    try {
+      const res = await fetch("/api/stripe/create-checkout-session", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({}),
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { error: errorText || "Unknown error" };
+        }
+        console.error("Failed to create checkout session", errorData);
+        alert(`Failed to start checkout: ${errorData.error || "Please try again."}`);
+        return;
+      }
+
+      const data = await res.json();
+
+      if (!data.url) {
+        alert("Stripe did not return a checkout URL.");
+        return;
+      }
+
+      // Redirect to Stripe Checkout
+      window.location.href = data.url;
+    } catch (err) {
+      console.error("Error calling checkout endpoint:", err);
+      alert("Something went wrong starting checkout.");
+    }
   };
 
   const features = [
