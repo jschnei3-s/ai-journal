@@ -110,18 +110,18 @@ async function generateAIPrompt(content: string, entryId?: string): Promise<AIPr
   let response: Response;
   try {
     response = await fetch(`${supabaseUrl}/functions/v1/generate-prompts`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${currentSession.access_token}`,
-        'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
-      },
-      body: JSON.stringify({
-        content: content,
-        entry_id: entryId,
-      }),
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${currentSession.access_token}`,
+      'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
+    },
+    body: JSON.stringify({
+      content: content,
+      entry_id: entryId,
+    }),
       signal: controller.signal,
-    });
+  });
   } catch (fetchError) {
     clearTimeout(timeoutId);
     if (fetchError instanceof Error && fetchError.name === 'AbortError') {

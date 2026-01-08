@@ -13,13 +13,13 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
 
     const variants = {
       primary:
-        "bg-blue-600 text-white hover:bg-blue-700 focus-visible:ring-blue-500",
+        "bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-700 hover:to-purple-700 focus-visible:ring-indigo-500 shadow-lg hover:shadow-xl",
       secondary:
-        "bg-gray-200 text-gray-900 hover:bg-gray-300 focus-visible:ring-gray-500",
+        "bg-gray-100 text-gray-900 hover:bg-gray-200 focus-visible:ring-gray-500 border border-gray-200/60",
       ghost:
         "hover:bg-gray-100 text-gray-700 focus-visible:ring-gray-500",
       danger:
-        "bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-500",
+        "bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-500 shadow-lg hover:shadow-xl",
     };
 
     const sizes = {

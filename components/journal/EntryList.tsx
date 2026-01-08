@@ -5,7 +5,7 @@ import { useJournalEntries, useDeleteEntry } from "@/lib/hooks/useJournal";
 import { useAuth } from "@/contexts/AuthContext";
 import { EntryCard } from "./EntryCard";
 import { Button } from "@/components/ui/Button";
-import { Search, Plus, Loader2 } from "lucide-react";
+import { Search, Plus, Loader2, FileText } from "lucide-react";
 import { format } from "date-fns";
 import Link from "next/link";
 
@@ -74,18 +74,20 @@ export function EntryList() {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Journal Entries</h1>
-          <p className="text-gray-600 mt-1">
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 via-indigo-900 to-gray-900 bg-clip-text text-transparent">
+            Journal Entries
+          </h1>
+          <p className="text-gray-600 mt-2 text-lg">
             {filteredEntries.length}{" "}
             {filteredEntries.length === 1 ? "entry" : "entries"}
           </p>
         </div>
         <Link href="/journal/new">
-          <Button variant="primary">
+          <Button variant="primary" className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all duration-300">
             <Plus className="h-5 w-5 mr-2" />
             New Entry
           </Button>
@@ -94,45 +96,55 @@ export function EntryList() {
 
       {/* Search */}
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+        <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
         <input
           type="text"
           placeholder="Search entries..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+          className="w-full pl-12 pr-4 py-3.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-400 outline-none bg-white/80 backdrop-blur-sm shadow-sm hover:shadow-md transition-all duration-200 text-gray-900 placeholder-gray-400"
         />
       </div>
 
       {/* Entries */}
       {sortedDates.length === 0 ? (
-        <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
-          <p className="text-gray-500 text-lg mb-4">
-            {searchQuery
-              ? "No entries match your search."
-              : "No journal entries yet."}
-          </p>
-          {!searchQuery && (
-            <Link href="/journal/new">
-              <Button variant="primary">
-                <Plus className="h-5 w-5 mr-2" />
-                Create Your First Entry
-              </Button>
-            </Link>
-          )}
+        <div className="bg-gradient-to-br from-white to-gray-50/50 rounded-2xl border border-gray-200/60 p-16 text-center shadow-sm">
+          <div className="max-w-md mx-auto">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center">
+              <FileText className="h-8 w-8 text-indigo-600" />
+            </div>
+            <p className="text-gray-700 text-xl font-medium mb-2">
+              {searchQuery
+                ? "No entries match your search."
+                : "No journal entries yet."}
+            </p>
+            <p className="text-gray-500 mb-6">
+              {searchQuery
+                ? "Try a different search term."
+                : "Start your journey of self-reflection and growth."}
+            </p>
+            {!searchQuery && (
+              <Link href="/journal/new">
+                <Button variant="primary" className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all duration-300">
+                  <Plus className="h-5 w-5 mr-2" />
+                  Create Your First Entry
+                </Button>
+              </Link>
+            )}
+          </div>
         </div>
       ) : (
-        <div className="space-y-8">
+        <div className="space-y-10">
           {sortedDates.map((date) => {
             const dateEntries = groupedEntries[date];
             const displayDate = format(new Date(date), "EEEE, MMMM d, yyyy");
 
             return (
-              <div key={date}>
-                <h2 className="text-lg font-semibold text-gray-700 mb-4 sticky top-0 bg-gray-50 py-2 z-10">
+              <div key={date} className="space-y-5">
+                <h2 className="text-xl font-bold text-gray-800 mb-6 sticky top-4 bg-gradient-to-r from-gray-50 to-indigo-50/30 backdrop-blur-sm py-3 px-4 rounded-lg border border-gray-200/60 z-10 shadow-sm">
                   {displayDate}
                 </h2>
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                   {dateEntries.map((entry) => (
                     <EntryCard
                       key={entry.id}

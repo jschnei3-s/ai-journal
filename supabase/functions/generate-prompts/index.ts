@@ -89,7 +89,7 @@ serve(async (req: Request) => {
     // Extract the token
     const token = authHeader.replace("Bearer ", "").trim();
     console.log("Token extracted, length:", token.length);
-    
+
     // Use service role key to validate and get user from the token
     // The service role key can validate any JWT token
     console.log("Validating JWT token with service role key...");
@@ -105,7 +105,7 @@ serve(async (req: Request) => {
       data: { user },
       error: userError,
     } = await supabase.auth.getUser(token);
-    
+
     if (userError || !user) {
       console.error("❌ JWT validation failed!");
       console.error("UserError:", JSON.stringify(userError, null, 2));
@@ -131,11 +131,11 @@ serve(async (req: Request) => {
     let body: Partial<GeneratePromptsRequest>;
     try {
       body = (await req.json()) as Partial<GeneratePromptsRequest>;
-      console.log("Request body received:", { 
-        hasContent: !!body.content, 
-        contentLength: body.content?.length || 0,
-        hasEntryId: !!body.entry_id 
-      });
+    console.log("Request body received:", { 
+      hasContent: !!body.content, 
+      contentLength: body.content?.length || 0,
+      hasEntryId: !!body.entry_id 
+    });
     } catch (parseError) {
       console.error("❌ Failed to parse request body:", parseError);
       return new Response(
@@ -251,7 +251,7 @@ serve(async (req: Request) => {
     console.log("OPENAI_API_KEY exists:", !!OPENAI_API_KEY);
     console.log("OPENAI_API_KEY starts with 'sk-':", OPENAI_API_KEY?.startsWith("sk-"));
     console.log("OPENAI_API_KEY length:", OPENAI_API_KEY?.length || 0);
-    
+
     // Call OpenAI
     const openaiRequestStart = Date.now();
     console.log("Making OpenAI API request at:", new Date().toISOString());
@@ -422,9 +422,9 @@ serve(async (req: Request) => {
 
     // Return single prompt (matching what the UI expects)
     const responseData = {
-      prompt_text: cleanPrompt,
-      id: crypto.randomUUID(),
-      created_at: new Date().toISOString(),
+        prompt_text: cleanPrompt,
+        id: crypto.randomUUID(),
+        created_at: new Date().toISOString(),
     };
     
     console.log("✅ Returning response with prompt_text length:", cleanPrompt.length);

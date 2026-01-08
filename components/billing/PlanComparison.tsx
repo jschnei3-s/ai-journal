@@ -37,20 +37,38 @@ export function PlanComparison() {
         return;
       }
 
-      const data = await res.json();
-      console.log("[CHECKOUT] Success response:", data);
-
-      if (!data.url) {
-        console.error("[CHECKOUT] No URL in response:", data);
-        alert("Stripe did not return a checkout URL.");
+      console.log("[CHECKOUT] Response is OK, parsing JSON...");
+      let data;
+      try {
+        const responseText = await res.text();
+        console.log("[CHECKOUT] Response text:", responseText);
+        data = JSON.parse(responseText);
+        console.log("[CHECKOUT] Parsed JSON:", data);
+      } catch (parseErr) {
+        console.error("[CHECKOUT] Failed to parse response as JSON:", parseErr);
+        alert(`Failed to parse server response. Check console for details.`);
         return;
       }
 
-      console.log("[CHECKOUT] Redirecting to:", data.url);
-      // Redirect to Stripe Checkout
-      window.location.href = data.url;
+      console.log("[CHECKOUT] Success response:", data);
+      console.log("[CHECKOUT] Data URL exists:", !!data.url);
+      console.log("[CHECKOUT] Data URL value:", data.url);
+
+      if (!data.url) {
+        console.error("[CHECKOUT] No URL in response:", data);
+        alert(`Stripe did not return a checkout URL. Response: ${JSON.stringify(data)}`);
+        return;
+      }
+
+      console.log("[CHECKOUT] About to redirect to:", data.url);
+      // Small delay to ensure logs are visible
+      setTimeout(() => {
+        console.log("[CHECKOUT] Redirecting NOW to:", data.url);
+        window.location.href = data.url;
+      }, 100);
     } catch (err) {
       console.error("[CHECKOUT] Network/fetch error:", err);
+      console.error("[CHECKOUT] Error stack:", err instanceof Error ? err.stack : "No stack");
       alert(`Something went wrong starting checkout: ${err instanceof Error ? err.message : "Unknown error"}`);
     }
   };

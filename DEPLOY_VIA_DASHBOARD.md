@@ -26,7 +26,7 @@ Yes! You can deploy the Edge Function directly from the Supabase website. Here's
 1. In the Edge Functions page, click on **Settings** or **Secrets**
 2. Add the following secrets:
    - **Name**: `OPENAI_API_KEY`
-     - **Value**: Your OpenAI API key (get it from https://platform.openai.com/api-keys)
+   - **Value**: Your OpenAI API key (get it from https://platform.openai.com/api-keys)
    - **Name**: `SUPABASE_ANON_KEY` (Important!)
      - **Value**: Your Supabase anon key (found in Dashboard → Settings → API → anon public key)
 3. Click **Save**

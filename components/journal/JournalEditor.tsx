@@ -113,42 +113,48 @@ export function JournalEditor({ entryId }: JournalEditorProps) {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4 pb-4 border-b border-gray-200">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 pb-6 border-b border-gray-200/60">
         <div className="flex items-center gap-4">
           <Button
             variant="ghost"
             size="sm"
             onClick={() => router.push("/entries")}
             aria-label="Back to entries"
+            className="hover:bg-indigo-50 hover:text-indigo-700 transition-colors"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back
           </Button>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 via-indigo-900 to-gray-900 bg-clip-text text-transparent">
               {entryId ? "Edit Entry" : "New Entry"}
             </h1>
             {existingEntry && (
-              <p className="text-sm text-gray-500 mt-1">
-                Created {new Date(existingEntry.created_at).toLocaleDateString()}
+              <p className="text-sm text-gray-600 mt-1.5">
+                Created {new Date(existingEntry.created_at).toLocaleDateString('en-US', { 
+                  weekday: 'long', 
+                  year: 'numeric', 
+                  month: 'long', 
+                  day: 'numeric' 
+                })}
               </p>
             )}
           </div>
         </div>
         <div className="flex items-center gap-4">
-          <div className="text-sm text-gray-500">
+          <div className="text-sm text-gray-600 bg-gray-50 px-4 py-2 rounded-lg border border-gray-200/60">
             {isSaving ? (
               <span className="flex items-center gap-2">
-                <span className="animate-spin">⏳</span>
-                Saving...
+                <span className="animate-spin text-indigo-600">⏳</span>
+                <span className="font-medium">Saving...</span>
               </span>
             ) : lastSaved ? (
-              <span className="flex items-center gap-2">
+              <span className="flex items-center gap-2 text-indigo-700">
                 <Save className="h-4 w-4" />
-                Saved {lastSaved.toLocaleTimeString()}
+                <span className="font-medium">Saved {lastSaved.toLocaleTimeString()}</span>
               </span>
             ) : (
-              <span>Not saved</span>
+              <span className="text-gray-500">Not saved</span>
             )}
           </div>
           <Button
@@ -156,6 +162,7 @@ export function JournalEditor({ entryId }: JournalEditorProps) {
             size="sm"
             onClick={handleManualSave}
             disabled={isSaving || !content.trim()}
+            className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50"
           >
             <Save className="h-4 w-4 mr-2" />
             Save
@@ -164,14 +171,18 @@ export function JournalEditor({ entryId }: JournalEditorProps) {
       </div>
 
       {/* Editor */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-h-0">
         <textarea
           ref={textareaRef}
           value={content}
           onChange={(e) => setContent(e.target.value)}
-          placeholder="Start writing your thoughts..."
-          className="flex-1 w-full resize-none border-none outline-none text-gray-900 placeholder-gray-400 text-lg leading-relaxed bg-transparent"
-          style={{ fontFamily: "inherit" }}
+          placeholder="Start writing your thoughts... Let your mind flow freely."
+          className="flex-1 w-full resize-none border-none outline-none text-gray-900 placeholder-gray-400 text-lg leading-relaxed bg-transparent focus:ring-0"
+          style={{ 
+            fontFamily: "inherit",
+            lineHeight: "1.8",
+            fontSize: "17px"
+          }}
         />
         <AIPromptDisplay
           content={content}
@@ -199,10 +210,13 @@ export function JournalEditor({ entryId }: JournalEditorProps) {
       </div>
 
       {/* Footer */}
-      <div className="mt-4 pt-4 border-t border-gray-200 flex items-center justify-between">
-        <div className="text-sm text-gray-500">
-          {wordCount} {wordCount === 1 ? "word" : "words"} • {charCount}{" "}
-          {charCount === 1 ? "character" : "characters"}
+      <div className="mt-6 pt-6 border-t border-gray-200/60 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="text-sm text-gray-600 bg-gray-50 px-4 py-2 rounded-lg border border-gray-200/60 inline-flex items-center gap-2">
+          <span className="font-semibold text-gray-900">{wordCount}</span>
+          <span>{wordCount === 1 ? "word" : "words"}</span>
+          <span className="text-gray-400">•</span>
+          <span className="font-semibold text-gray-900">{charCount}</span>
+          <span>{charCount === 1 ? "character" : "characters"}</span>
         </div>
         {entryId && existingEntry && (
           <Button
@@ -220,6 +234,7 @@ export function JournalEditor({ entryId }: JournalEditorProps) {
               }
             }}
             disabled={deleteEntry.isPending}
+            className="hover:scale-105 transition-transform"
           >
             <Trash2 className="h-4 w-4 mr-2" />
             {deleteEntry.isPending ? "Deleting..." : "Delete"}

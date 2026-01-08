@@ -86,15 +86,15 @@ export function AIPromptDisplay({
           console.log("✅ Prompt generated successfully:", prompt.prompt_text.substring(0, 50) + "...");
           
           // Use a function update to avoid dependency issues
-          setCurrentPrompt(prompt.prompt_text);
-          setIsVisible(true);
+        setCurrentPrompt(prompt.prompt_text);
+        setIsVisible(true);
           lastProcessedContentRef.current = currentTrimmed;
           
           // Clear error and reset dismissed in a batch to minimize re-renders
           clearError();
           if (dismissedRef.current) {
-            setDismissed(false);
-          }
+        setDismissed(false);
+      }
         } else if (!prompt && stillCurrent) {
           // If no prompt returned, mark as processed to prevent immediate retry
           console.log("⚠️ No prompt returned");
